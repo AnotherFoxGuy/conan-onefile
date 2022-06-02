@@ -26,6 +26,16 @@ jobs:
         with:
           python-version: "3.9"
 
+
+      - name: Cache conan packages part 1
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          git clone --depth 1 --branch v5.1 https://github.com/pyinstaller/pyinstaller.git
+          cd pyinstaller
+          python ./waf all
+          python setup.py install
+          cd ..
+
       - name: Install pyinstaller
         run: pip install -r conans/requirements.txt -U
 
