@@ -1,0 +1,101 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: build-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-18.04, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
+
+      - name: Build pyinstaller (Windows)
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          pip install wheel
+          git clone --depth 1 --branch v5.2 https://github.com/pyinstaller/pyinstaller.git
+          cd pyinstaller\\bootloader
+          python ./waf all
+          cd ..
+          python setup.py install
+          cd ..
+
+      - name: Install deps
+        run: pip install -r conans/requirements.txt -U
+
+      - name: Build
+        run: | 
+          pyinstaller --onefile conans/conan.py \
+            --hidden-import=setuptools.msvc \
+            --hidden-import=glob \
+            --hidden-import=pathlib \
+            --hidden-import=distutils.dir_util \
+            --hidden-import=conan.errors \
+            --hidden-import=conan.tools.microsoft \
+            --hidden-import=conan.tools.gnu --hidden-import=conan.tools.cmake \
+            --hidden-import=conan.tools.meson --hidden-import=conan.tools.apple \
+            --hidden-import=conan.tools.build --hidden-import=conan.tools.env \
+            --hidden-import=conan.tools.files \
+            --hidden-import=conan.tools.google --hidden-import=conan.tools.intel \
+            --hidden-import=conan.tools.layout --hidden-import=conan.tools.premake \
+            --hidden-import=conan.tools.qbs --hidden-import=conan.tools.scm \
+            --hidden-import=conan.tools.system --hidden-import=conan.tools.system.package_manager
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: conan_${{ matrix.os }}
+          path: dist/*
+          if-no-files-found: error
+
+  create-release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main')
+
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: conan_windows-latest
+          path: windows/
+      - uses: actions/download-artifact@v3
+        with:
+          name: conan_ubuntu-18.04
+          path: ubuntu/
+      - uses: actions/download-artifact@v3
+        with:
+          name: conan_macos-latest
+          path: macos/
+
+      - name: Move files
+        run: |
+          mv windows/conan.exe conan-win.exe
+          mv ubuntu/conan conan-linux
+          mv macos/conan conan-macos
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: 1.52.0
+          body: See https://github.com/conan-io/conan/releases/ for patchnotes
+          files: |
+            conan-win.exe
+            conan-linux
+            conan-macos
