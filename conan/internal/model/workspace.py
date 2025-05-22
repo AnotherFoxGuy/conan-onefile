@@ -7,6 +7,10 @@ from conan.api.output import ConanOutput
 from conan.errors import ConanException
 from conan.internal.util.files import load, save
 
+# Related files
+WORKSPACE_YML = "conanws.yml"
+WORKSPACE_PY = "conanws.py"
+
 
 class Workspace:
     """
@@ -23,13 +27,13 @@ class Workspace:
         return self.conan_data.get("name") or os.path.basename(self.folder)
 
     def _conan_load_data(self):
-        data_path = os.path.join(self.folder, "conanws.yml")
+        data_path = os.path.join(self.folder, WORKSPACE_YML)
         if not os.path.exists(data_path):
             return {}
         try:
             data = yaml.safe_load(load(data_path))
         except Exception as e:
-            raise ConanException("Invalid yml format at {}: {}".format("conanws.yml", e))
+            raise ConanException("Invalid yml format at {}: {}".format(WORKSPACE_YML, e))
         return data or {}
 
     def home_folder(self):
@@ -44,7 +48,7 @@ class Workspace:
         self.conan_data.setdefault("editables", {})[str(ref)] = editable
         if product:
             self.conan_data.setdefault("products", []).append(path)
-        save(os.path.join(self.folder, "conanws.yml"), yaml.dump(self.conan_data))
+        save(os.path.join(self.folder, WORKSPACE_YML), yaml.dump(self.conan_data))
 
     def remove(self, path):
         found_ref = None
@@ -58,7 +62,7 @@ class Workspace:
         self.conan_data["editables"].pop(found_ref)
         if path in self.conan_data.get("products", []):
             self.conan_data["products"].remove(path)
-        save(os.path.join(self.folder, "conanws.yml"), yaml.dump(self.conan_data))
+        save(os.path.join(self.folder, WORKSPACE_YML), yaml.dump(self.conan_data))
         return found_ref
 
     def clean(self):
@@ -80,9 +84,6 @@ class Workspace:
         if not os.path.isabs(path):
             raise ConanException(f"Editable path must be absolute: {path}")
         path = os.path.relpath(path, self.folder)
-        if path.startswith(".."):
-            raise ConanException(f"Editable path must be inside the workspace folder: "
-                                 f"{self.folder}")
         return path.replace("\\", "/")  # Normalize to unix path
 
     def editables(self):
