@@ -5,7 +5,7 @@ from conan.internal.internal_tools import raise_on_universal_arch
 from conan.tools.apple.apple import is_apple_os, resolve_apple_flags, apple_extra_flags
 from conan.tools.build import cmd_args_to_string, save_toolchain_args
 from conan.tools.build.cross_building import cross_building
-from conan.tools.build.flags import architecture_flag, build_type_flags, cppstd_flag, \
+from conan.tools.build.flags import architecture_flag, architecture_link_flag, build_type_flags, cppstd_flag, \
     build_type_link_flags, \
     libcxx_flags, llvm_clang_front
 from conan.tools.env import Environment, VirtualBuildEnv
@@ -57,6 +57,7 @@ class GnuToolchain:
 
         self.cppstd = cppstd_flag(self._conanfile)
         self.arch_flag = architecture_flag(self._conanfile)
+        self.arch_ld_flag = architecture_link_flag(self._conanfile)
         self.libcxx, self.gcc_cxx11_abi = libcxx_flags(self._conanfile)
         self.fpic = self._conanfile.options.get_safe("fPIC")
         self.msvc_runtime_flag = self._get_msvc_runtime_flag()
@@ -288,7 +289,7 @@ class GnuToolchain:
 
     @property
     def ldflags(self):
-        ret = [self.arch_flag, self.sysroot_flag]
+        ret = [self.arch_flag, self.sysroot_flag, self.arch_ld_flag]
         apple_flags = [self.apple_isysroot_flag, self.apple_arch_flag, self.apple_min_version_flag]
         apple_flags += self.apple_extra_flags
         conf_flags = self._conanfile.conf.get("tools.build:sharedlinkflags", default=[],
@@ -337,6 +338,17 @@ class GnuToolchain:
                 triplets[f"--{context}"] = info["triplet"]
         return triplets
 
+    def _include_obj_arc_flags(self, env):
+        enable_arc = self._conanfile.conf.get("tools.apple:enable_arc", check_type=bool)
+        fobj_arc = ""
+        if enable_arc:
+            fobj_arc = "-fobjc-arc"
+        if enable_arc is False:
+            fobj_arc = "-fno-objc-arc"
+        if fobj_arc:
+            env.append('OBJCFLAGS', [fobj_arc])
+            env.append('OBJCXXFLAGS', [fobj_arc])
+
     @property
     def _environment(self):
         env = Environment()
@@ -346,6 +358,8 @@ class GnuToolchain:
         env.append("CFLAGS", self.cflags)
         env.append("LDFLAGS", self.ldflags)
         env.prepend_path("PKG_CONFIG_PATH", self._conanfile.generators_folder)
+        # Objective C/C++
+        self._include_obj_arc_flags(env)
         # Let's compose with user extra env variables defined (user ones have precedence)
         return self.extra_env.compose_env(env)
 
