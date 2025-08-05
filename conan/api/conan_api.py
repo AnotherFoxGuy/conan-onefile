@@ -19,7 +19,6 @@ from conan.api.subapi.profiles import ProfilesAPI
 from conan.api.subapi.list import ListAPI
 from conan.api.subapi.remotes import RemotesAPI
 from conan.api.subapi.remove import RemoveAPI
-from conan.api.subapi.search import SearchAPI
 from conan.api.subapi.upload import UploadAPI
 from conan.errors import ConanException
 from conan.internal.cache.home_paths import HomePaths
@@ -51,18 +50,19 @@ class ConanAPI:
             raise ConanException("cache_folder has to be an absolute path")
 
         init_colorama(sys.stderr)
+        # Deprecated, but still used internally, prefer home_folder
         self.cache_folder = cache_folder or get_conan_user_home()
-        self.home_folder = self.cache_folder  # Lets call it home, deprecate "cache"
+        self._home_folder = self.cache_folder
         self._api_helpers = self._ApiHelpers(self)
         self.migrate()
 
-        self.config = ConfigAPI(self, self._api_helpers)
-        self.remotes = RemotesAPI(self, self._api_helpers)
+        #: Used to interact with the local Conan configuration
+        self.config: ConfigAPI = ConfigAPI(self, self._api_helpers)
+        #: Used to interact with remotes
+        self.remotes: RemotesAPI = RemotesAPI(self, self._api_helpers)
         self.command = CommandAPI(self)
-        # Search recipes by wildcard and packages filtering by configuration
-        self.search = SearchAPI(self)
-        # Get latest refs and list refs of recipes and packages
-        self.list = ListAPI(self)
+        #: Used to get latest refs and list refs of recipes and packages
+        self.list: ListAPI = ListAPI(self)
         self.profiles = ProfilesAPI(self, self._api_helpers)
         self.install = InstallAPI(self, self._api_helpers)
         self.graph = GraphAPI(self, self._api_helpers)
@@ -78,6 +78,15 @@ class ConanAPI:
         # Now, lazy loading of editables
         self.workspace = WorkspaceAPI(self)
         self.report = ReportAPI(self, self._api_helpers)
+
+    @property
+    def home_folder(self):
+        """ Where the Conan user home is located. Read only.
+        Can be modified by the ``CONAN_HOME`` environment variable or by the
+        ``.conanrc`` file in the current directory or any parent directory
+        when Conan is called.
+        """
+        return self._home_folder
 
     def reinit(self):
         """
