@@ -29,6 +29,7 @@ from conan.internal.model.settings import load_settings_yml
 from conan.internal.paths import get_conan_user_home
 from conan.internal.api.migrations import ClientMigrator
 from conan.internal.model.version_range import validate_conan_version
+from conan.internal.rest.conan_requester import ConanRequester
 
 
 class ConanAPI:
@@ -82,7 +83,6 @@ class ConanAPI:
         """
         Reinitialize the Conan API. This is useful when the configuration changes.
         """
-        # TODO: Think order of reinitialization for helpers
         self._api_helpers.reinit()
         self.remotes.reinit()
         self.local.reinit()
