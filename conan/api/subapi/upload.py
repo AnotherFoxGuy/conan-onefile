@@ -38,14 +38,14 @@ class UploadAPI:
             A ``force_upload`` key will be added to the entries that will be uploaded.
         """
         app = ConanApp(self._conan_api)
-        for ref, bundle in package_list.refs().items():
+        for ref, _ in package_list.items():
             layout = app.cache.recipe_layout(ref)
             conanfile_path = layout.conanfile()
             conanfile = app.loader.load_basic(conanfile_path, remotes=enabled_remotes)
             if conanfile.upload_policy == "skip":
                 ConanOutput().info(f"{ref}: Skipping upload of binaries, "
                                    "because upload_policy='skip'")
-                bundle["packages"] = {}
+                package_list.recipe_dict(ref)["packages"] = {}
 
         UploadUpstreamChecker(app).check(package_list, remote, force)
 
@@ -130,7 +130,7 @@ class UploadAPI:
         ConanOutput().title(f"Uploading to remote {remote.name}")
         parallel = self._conan_api.config.get("core.upload:parallel", default=1, check_type=int)
         thread_pool = ThreadPool(parallel) if parallel > 1 else None
-        if not thread_pool or len(package_list.recipes) <= 1:
+        if not thread_pool or len(package_list._data) <= 1:  # FIXME: Iteration when multiple rrevs
             _upload_pkglist(package_list, subtitle=ConanOutput().subtitle)
         else:
             ConanOutput().subtitle(f"Uploading with {parallel} parallel threads")
