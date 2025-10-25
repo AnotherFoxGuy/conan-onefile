@@ -1,0 +1,1 @@
+pyinstaller --onefile conans\conan.py
