@@ -1,5 +1,3 @@
-from typing import List
-
 from conan.api.output import ConanOutput
 from conan.internal.conan_app import ConanApp, ConanBasicApp
 from conan.internal.model.recipe_ref import ref_matches
@@ -192,7 +190,7 @@ class GraphAPI:
         deps_graph = builder.load_graph(root_node, profile_host, profile_build, lockfile)
         return deps_graph
 
-    def analyze_binaries(self, graph, build_mode=None, remotes=None, update: bool | List[str] = None,
+    def analyze_binaries(self, graph, build_mode=None, remotes=None, update=None,
                          lockfile=None, build_modes_test=None, tested_graph=None):
         """ Given a dependency graph, will compute the package_ids of all recipes in the graph, and
         evaluate if they should be built from sources, downloaded from a remote server, of if the
