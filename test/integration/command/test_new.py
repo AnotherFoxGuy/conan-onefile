@@ -4,9 +4,9 @@ import textwrap
 import pytest
 
 from conan import __version__
+from conan.internal.util.files import save
 from conan.test.utils.test_files import temp_folder
 from conan.test.utils.tools import TestClient
-from conan.internal.util.files import save
 
 
 class TestNewCommand:
