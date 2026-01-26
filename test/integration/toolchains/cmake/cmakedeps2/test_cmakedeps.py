@@ -495,7 +495,7 @@ class TestRequiresToApp:
         targets = c.load("libtool-Targets-release.cmake")
         # The libtool shouldn't depend on the automake::automake target
         assert "automake::automake" not in targets
-        assert "# Requirement automake::mylibapp => Full link: True" in targets
+        assert "# Requirement libtool::libtool -> automake::mylibapp (Full link: True)" in targets
         assert "$<$<CONFIG:RELEASE>:automake::mylibapp>" in targets
 
     def test_requires_from_library_component(self):
@@ -656,4 +656,112 @@ def test_target_defines_only():
     client.run(f"install --requires=pkg/0.1 -g CMakeDeps -c tools.cmake.cmakedeps:new={new_value}")
     target = client.load("pkg-Targets-release.cmake")
     assert 'add_library(pkg::base INTERFACE IMPORTED)' in target
-    assert "# Requirement pkg::base => Full link: True" in target
+    assert "# Requirement pkg::comp -> pkg::base (Full link: True)" in target
+
+
+class TestLinkFeatures:
+    def test_link_info_global_cpp_info(self):
+        tc = TestClient()
+        conanfile = textwrap.dedent("""
+        from conan import ConanFile
+
+        class Pkg(ConanFile):
+            name = "pkg"
+            version = "1.0"
+            settings = "os", "compiler", "build_type", "arch"
+
+            def package_info(self):
+                self.cpp_info.set_property("cmake_link_feature", "MYFET")
+        """)
+        tc.save({"conanfile.py": conanfile})
+        tc.run("create")
+
+        dep = textwrap.dedent("""
+        from conan import ConanFile
+        class Dep(ConanFile):
+            name = "dep"
+            version = "1.0"
+            settings = "os", "compiler", "build_type", "arch"
+            requires = "pkg/1.0"
+        """)
+        tc.save({"conanfile.py": dep})
+        tc.run("create")
+        tc.run("install --requires=dep/1.0 -g CMakeConfigDeps")
+        # The requirement should propagate the link feature info
+        target = tc.load("dep-Targets-release.cmake")
+        assert "# Requirement dep::dep -> pkg::pkg (Full link: True)\n# Link feature: MYFET" in target
+
+    def test_link_info_local_component_from_interface(self):
+        tc = TestClient()
+        conanfile = textwrap.dedent("""
+        from conan import ConanFile
+
+        class Pkg(ConanFile):
+            name = "pkg"
+            version = "1.0"
+            settings = "os", "compiler", "build_type", "arch"
+
+            def package_info(self):
+                self.cpp_info.components["compA"].set_property("cmake_link_feature", "MYFET")
+        """)
+        tc.save({"conanfile.py": conanfile})
+        tc.run("create")
+        tc.run("install --requires=pkg/1.0 -g CMakeConfigDeps")
+        targets = tc.load("pkg-Targets-release.cmake")
+        # The interface library created as a global target should have the requirement
+        assert "# Requirement pkg::pkg -> pkg::compA (Full link: True)\n# Link feature: MYFET" in targets
+
+    def test_link_info_local_component_to_component_require(self):
+        tc = TestClient()
+        conanfile = textwrap.dedent("""
+        from conan import ConanFile
+
+        class Pkg(ConanFile):
+            name = "pkg"
+            version = "1.0"
+            settings = "os", "compiler", "build_type", "arch"
+
+            def package_info(self):
+                self.cpp_info.components["compA"].set_property("cmake_link_feature", "MYFET")
+                self.cpp_info.components["compB"].requires = ["compA"]
+        """)
+        tc.save({"conanfile.py": conanfile})
+        tc.run("create")
+        tc.run("install --requires=pkg/1.0 -g CMakeConfigDeps")
+        targets = tc.load("pkg-Targets-release.cmake")
+        # The component requirement should have the link feature info
+        assert "# Requirement pkg::compB -> pkg::compA (Full link: True)\n# Link feature: MYFET" in targets
+
+    def test_link_info_lib_to_component_require(self):
+        tc = TestClient()
+        conanfile = textwrap.dedent("""
+        from conan import ConanFile
+
+        class Pkg(ConanFile):
+            name = "pkg"
+            version = "1.0"
+            settings = "os", "compiler", "build_type", "arch"
+
+            def package_info(self):
+                self.cpp_info.components["compA"].set_property("cmake_link_feature", "MYFET")
+        """)
+        tc.save({"conanfile.py": conanfile})
+        tc.run("create")
+
+        dep = textwrap.dedent("""
+        from conan import ConanFile
+        class Dep(ConanFile):
+            name = "dep"
+            version = "1.0"
+            settings = "os", "compiler", "build_type", "arch"
+            requires = "pkg/1.0"
+
+            def package_info(self):
+                self.cpp_info.requires = ["pkg::compA"]
+        """)
+        tc.save({"conanfile.py": dep})
+        tc.run("create")
+        tc.run("install --requires=dep/1.0 -g CMakeConfigDeps")
+        targets = tc.load("dep-Targets-release.cmake")
+        # The requirement should have the link feature info
+        assert "# Requirement dep::dep -> pkg::compA (Full link: True)\n# Link feature: MYFET" in targets
