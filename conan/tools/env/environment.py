@@ -419,24 +419,54 @@ class EnvVars:
     def save_bat(self, file_location, generate_deactivate=True):
         _, filename = os.path.split(file_location)
         deactivate_file = "deactivate_{}".format(filename)
-        deactivate = textwrap.dedent("""\
+        is_function = self._deactivation_mode == "function"
+        deactivates_variable = f"_CONAN_{self._scope}_DEACTIVATES_DIR"
+        dest_variable = f"%{deactivates_variable}%" if is_function else "%~dp0"
+
+        function_preamble = textwrap.dedent(f"""
+            set "local_defined=0"
+            if defined {deactivates_variable} goto skip_deactivate_variable
+
+            set "local_defined=1"
+            set "{deactivates_variable}=%TEMP%\\conan_{self._scope}_%RANDOM%"
+            mkdir "%{deactivates_variable}%"
+            set "PATH=%{deactivates_variable}%;%PATH%"
+
+            :skip_deactivate_variable
+        """) if is_function else ""
+
+        function_epilogue = textwrap.dedent(f"""
+            if %local_defined% == 0 goto end
+            echo set "PATH=%%PATH:%{deactivates_variable}%;=%%" >> "{dest_variable}/{deactivate_file}"
+            echo set "{deactivates_variable}=">> "{dest_variable}/{deactivate_file}"
+            :end
+        """) if is_function else ""
+
+        variables = " ".join(self._values.keys())
+
+        deactivate = textwrap.dedent(f"""\
+            @echo off
+            {function_preamble}
+            
             setlocal
-            echo @echo off > "%~dp0/{deactivate_file}"
-            echo echo Restoring environment >> "%~dp0/{deactivate_file}"
-            for %%v in ({vars}) do (
+            echo @echo off > "{dest_variable}/{deactivate_file}"
+            echo echo Restoring environment for {filename} >> "{dest_variable}/{deactivate_file}"
+            for %%v in ({variables}) do (
                 set foundenvvar=
                 for /f "delims== tokens=1,2" %%a in ('set') do (
                     if /I "%%a" == "%%v" (
-                        echo set "%%a=%%b">> "%~dp0/{deactivate_file}"
+                        echo set "%%a=%%b">> "{dest_variable}/{deactivate_file}"
                         set foundenvvar=1
                     )
                 )
                 if not defined foundenvvar (
-                    echo set %%v=>> "%~dp0/{deactivate_file}"
+                    echo set %%v=>> "{dest_variable}/{deactivate_file}"
                 )
             )
             endlocal
-            """).format(deactivate_file=deactivate_file, vars=" ".join(self._values.keys()))
+            
+            {function_epilogue}
+            """)
         capture = textwrap.dedent("""\
             @echo off
             chcp 65001 > nul
