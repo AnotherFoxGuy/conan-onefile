@@ -232,6 +232,7 @@ class TestMsysClang:
         check_vs_runtime(cmd, client, "17", build_type="Release",
                          static_runtime=False, subsystem="clang64")
 
+    @pytest.mark.slow
     @pytest.mark.tool("msys2_mingw64_clang64")
     def test_msys2_clang_mingw(self, client):
         """ compiling with the clang INSIDE mingw, which uses the
@@ -245,7 +246,7 @@ class TestMsysClang:
         # clang compilations in Windows will use MinGW Makefiles by default
         assert 'cmake -G "MinGW Makefiles"' in client.out
         # TODO: Version is still not controlled
-        assert "main __clang_major__21" in client.out
+        assert "main __clang_major__22" in client.out
         assert "main _GLIBCXX_USE_CXX11_ABI 0" in client.out
         assert "main __cplusplus2014" in client.out
         assert "main __GNUC__" in client.out
