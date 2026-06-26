@@ -37,6 +37,9 @@ class TestRestApi:
             remote = Remote("myremote", f"http://127.0.0.1:{cls.server.port}", True, True)
             cls.api = RestApiClient(remote, None, requester, config)
             cls.api._token = cls.api.authenticate(user="private_user", password="private_pass")
+            # Necessary for setup_class approach
+            TestRestApi.api = cls.api
+            TestRestApi.server = cls.server
         yield
 
         cls.server.stop()
