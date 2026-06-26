@@ -403,8 +403,8 @@ class TestErrorsUx:
 
 
 class TestPythonRequires:
-    @classmethod
     @pytest.fixture(scope="class")
+    @classmethod
     def c3i_pyrequires_folder(cls):
         folder = temp_folder()
         recipes_folder = os.path.join(folder, "recipes")
@@ -433,8 +433,8 @@ class TestPythonRequires:
 
 
 class TestUserChannel:
-    @classmethod
     @pytest.fixture(scope="class")
+    @classmethod
     def c3i_user_channel_folder(cls):
         folder = temp_folder()
         recipes_folder = os.path.join(folder, "recipes")

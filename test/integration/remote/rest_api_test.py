@@ -20,8 +20,8 @@ from conan.internal.util.files import md5, save
 class TestRestApi:
     """Open a real server (sockets) to test rest_api function."""
 
-    @classmethod
     @pytest.fixture(scope="class", autouse=True)
+    @classmethod
     def setup_class(cls):
         with environment_update({"CONAN_SERVER_PORT": str(get_free_port())}):
             read_perms = [("*/*@*/*", "private_user")]

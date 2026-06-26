@@ -10,8 +10,8 @@ from conan.test.utils.env import environment_update
 @pytest.mark.artifactory_ready
 class TestDownloadPatterns:
     # The fixture is very similar from TestUploadPatterns, but not worth extracting
-    @classmethod
     @pytest.fixture(scope="class")
+    @classmethod
     def client(cls):
         """ create a few packages, with several recipe revisions, several pids, several prevs
         """
@@ -142,8 +142,8 @@ class TestDownloadPatterns:
 
 class TestDownloadPatterErrors:
 
-    @classmethod
     @pytest.fixture(scope="class")
+    @classmethod
     def client(cls):
         client = TestClient(default_server_user=True)
         client.save({"conanfile.py": GenConanfile("pkg", "0.1")})
